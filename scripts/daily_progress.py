@@ -28,7 +28,7 @@ OBSIDIAN_DIR = Path.home() / "Documents" / "refuse_to_choose" / "Anki Progress"
 def _try_ankiconnect_sync() -> bool:
     """
     Attempt to trigger an Anki sync via AnkiConnect on the local host.
-    
+
     Returns:
         bool: `True` if a POST to AnkiConnect at http://127.0.0.1:8765 returned HTTP 200, `False` otherwise.
     """
@@ -47,9 +47,9 @@ def _try_ankiconnect_sync() -> bool:
 def _get_last_sync_time(db_path: Path) -> str | None:
     """
     Obtain the collection's last sync time formatted as YYYY-MM-DD HH:MM.
-    
+
     Reads the `ls` value from the collection's `col` table (interpreted as milliseconds since the epoch) and converts it to a local timestamp string. Returns `None` if the value is absent or an error occurs while reading the database.
-    
+
     Returns:
         str | None: A timestamp string formatted as `YYYY-MM-DD HH:MM` if available, `None` otherwise.
     """
@@ -70,10 +70,10 @@ def _get_last_sync_time(db_path: Path) -> str | None:
 def _load_cards(db_path: Path) -> list[dict]:
     """
     Load non-suspended Anki cards from the collection SQLite and return their relevant fields.
-    
+
     Parameters:
         db_path (Path): Path to the Anki collection SQLite file (opened read-only).
-    
+
     Returns:
         list[dict]: A list of card records where each dictionary contains:
             - interval (int): Card interval in days (`ivl`).
@@ -121,10 +121,10 @@ def _load_cards(db_path: Path) -> list[dict]:
 def _load_deck_stats(db_path: Path) -> dict[str, dict]:
     """
     Aggregate per-deck card counts by queue state, excluding suspended cards.
-    
+
     Parameters:
         db_path (Path): Path to the Anki collection database.
-    
+
     Returns:
         dict[str, dict]: Mapping from deck name to a dictionary with the following integer keys:
             - "new_count": number of cards in the new queue (queue = 0)
@@ -168,12 +168,12 @@ def _load_deck_stats(db_path: Path) -> dict[str, dict]:
 def _load_review_history(db_path: Path) -> dict[int, int]:
     """
     Get daily review counts for the last 30 days from the Anki revlog.
-    
+
     Parameters:
         db_path (Path): Path to the Anki collection SQLite file.
-    
+
     Returns:
-        dict[int, int]: Mapping where keys are days ago (0 = today) and values are the number of reviews on that day; includes only entries for days in the range 0–30.
+        dict[int, int]: Mapping where keys are days ago (0 = today) and values are the number of reviews on that day; includes only entries for days in the range 0-30.
     """
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
 
@@ -192,7 +192,7 @@ def _load_review_history(db_path: Path) -> dict[int, int]:
 def main():
     """
     Generate today's Anki progress report and write it as a Markdown file into the Obsidian vault.
-    
+
     Attempts to sync via AnkiConnect; if unavailable, reads data directly from the configured Anki collection SQLite database. Loads card details, per-deck statistics, and recent review history, formats the report with format_progress_report, and writes the output to OBSIDIAN_DIR/YYYY-MM-DD.md. Exits with status code 1 if the configured ANKI_DB file does not exist.
     """
     if not ANKI_DB.exists():

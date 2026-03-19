@@ -282,13 +282,13 @@ async def sync() -> str:
 async def progress(deck: Optional[str] = None, top_n: int = 15) -> str:
     """
     Generate a learning progress report for the specified deck or for all decks.
-    
+
     Performs a best-effort sync, aggregates deck statistics, card scheduling data, and recent review counts (last 31 days), excludes suspended cards, and computes an interest/priority-based ranking to produce a formatted progress summary.
-    
+
     Parameters:
         deck (Optional[str]): Deck name to limit the report to; when provided, includes that deck and its subdecks (prefix "{deck}::"). If omitted, the report covers all decks.
         top_n (int): Number of top-ranked cards to include in the report.
-    
+
     Returns:
         str: A multiline, human-readable progress report that includes per-deck statistics, a top-N list of prioritized cards (Interest Heat Score), and a 31-day review-count histogram.
     """
