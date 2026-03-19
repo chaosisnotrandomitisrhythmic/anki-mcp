@@ -1,11 +1,14 @@
 """FastMCP server with Anki tools."""
 
+import asyncio
+from datetime import date, timedelta
 from typing import Optional
 
 from fastmcp import FastMCP
 
 from .client import AnkiClient, AnkiConnectError, AnkiNotRunningError
 from .config import ARCHIVE_DIR, DEFAULT_DECK, DEFAULT_MODEL, ToolConfig
+from .metrics import format_progress_report
 from .models import DeckStats, NoteInfo, NoteInput
 from . import get_logger
 
@@ -259,7 +262,12 @@ async def import_deck(filename: str) -> str:
 
 @mcp.tool(description=ToolConfig.SYNC_DESCRIPTION)
 async def sync() -> str:
-    """Trigger AnkiWeb sync."""
+    """
+    Trigger a synchronization with AnkiWeb.
+    
+    Returns:
+        A status message: "AnkiWeb sync completed." on success, the string representation of an `AnkiNotRunningError` if Anki is not running, or "Error syncing: {e}" for `AnkiConnectError` cases.
+    """
     try:
         await _client.sync()
     except AnkiNotRunningError as e:
@@ -270,9 +278,113 @@ async def sync() -> str:
     return "AnkiWeb sync completed."
 
 
+@mcp.tool(annotations={"readOnlyHint": True}, description=ToolConfig.PROGRESS_DESCRIPTION)
+async def progress(deck: Optional[str] = None, top_n: int = 15) -> str:
+    """
+    Generate a learning progress report for the specified deck or for all decks.
+    
+    Performs a best-effort sync, aggregates deck statistics, card scheduling data, and recent review counts (last 31 days), excludes suspended cards, and computes an interest/priority-based ranking to produce a formatted progress summary.
+    
+    Parameters:
+        deck (Optional[str]): Deck name to limit the report to; when provided, includes that deck and its subdecks (prefix "{deck}::"). If omitted, the report covers all decks.
+        top_n (int): Number of top-ranked cards to include in the report.
+    
+    Returns:
+        str: A multiline, human-readable progress report that includes per-deck statistics, a top-N list of prioritized cards (Interest Heat Score), and a 31-day review-count histogram.
+    """
+    try:
+        # Sync first to get latest mobile reviews
+        try:
+            await _client.sync()
+        except AnkiConnectError:
+            pass  # non-fatal — proceed with whatever data we have
+
+        # Build query
+        query = f'"deck:{deck}"' if deck else "deck:*"
+
+        # Parallel: deck stats, find cards, review history
+        names_and_ids_task = _client.deck_names_and_ids()
+        find_cards_task = _client.find_cards(query)
+        review_by_day_task = _client.num_cards_reviewed_by_day()
+
+        names_and_ids, card_ids, review_raw = await asyncio.gather(
+            names_and_ids_task, find_cards_task, review_by_day_task
+        )
+
+        # Get deck stats
+        deck_names = list(names_and_ids.keys())
+        if deck:
+            deck_names = [n for n in deck_names if n == deck or n.startswith(f"{deck}::")]
+        stats_raw = await _client.get_deck_stats(deck_names) if deck_names else {}
+
+        # Sequential: get card details (depends on find_cards result)
+        cards_raw = await _client.cards_info(card_ids) if card_ids else []
+
+        # cardsInfo doesn't include tags — fetch from notesInfo
+        note_ids = list({c["note"] for c in cards_raw if isinstance(c.get("note"), int)})
+        notes_raw = await _client.notes_info(note_ids) if note_ids else []
+        note_tags = {n["noteId"]: n.get("tags", []) for n in notes_raw}
+
+        # Build deck_stats dict keyed by name
+        id_to_name = {v: k for k, v in names_and_ids.items()}
+        deck_stats: dict[str, dict] = {}
+        for did_str, ds in stats_raw.items():
+            dname = id_to_name.get(int(did_str), did_str)
+            if deck and dname != deck and not dname.startswith(f"{deck}::"):
+                continue
+            deck_stats[dname] = {
+                "new_count": ds.get("new_count", 0),
+                "learn_count": ds.get("learn_count", 0),
+                "review_count": ds.get("review_count", 0),
+                "total": ds.get("total_in_deck", 0),
+            }
+
+        # Normalize cards to shared format (exclude suspended)
+        cards = []
+        for c in cards_raw:
+            if c.get("queue", 0) == -1:
+                continue
+            tags = note_tags.get(c.get("note", 0), [])
+            cards.append({
+                "interval": c.get("interval", 0),
+                "factor": c.get("factor", 0),
+                "lapses": c.get("lapses", 0),
+                "reps": c.get("reps", 0),
+                "queue": c.get("queue", 0),
+                "tags": tags,
+                "deck_name": c.get("deckName", ""),
+            })
+
+        # Normalize review history to {days_ago: count}
+        today = date.today()
+        review_day_map: dict[int, int] = {}
+        for entry in review_raw:
+            # AnkiConnect returns [date_str, count]
+            review_date_str, count = entry[0], entry[1]
+            try:
+                rd = date.fromisoformat(review_date_str)
+                days_ago = (today - rd).days
+                if 0 <= days_ago < 31:
+                    review_day_map[days_ago] = count
+            except (ValueError, TypeError):
+                continue
+
+        return format_progress_report(cards, deck_stats, review_day_map, top_n=top_n)
+
+    except AnkiNotRunningError as e:
+        return str(e)
+    except AnkiConnectError as e:
+        return f"Error generating progress report: {e}"
+
+
 @mcp.tool(annotations={"readOnlyHint": True}, description=ToolConfig.HEALTH_DESCRIPTION)
 async def health() -> str:
-    """Check AnkiConnect connectivity."""
+    """
+    Check whether AnkiConnect is reachable and report its version.
+    
+    Returns:
+        A message string: `AnkiConnect is reachable. Version: {version}` on success; the stringified `AnkiNotRunningError` message if Anki is not running; or `AnkiConnect error: {e}` for other connection errors.
+    """
     try:
         version = await _client.version()
     except AnkiNotRunningError as e:

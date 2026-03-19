@@ -113,7 +113,14 @@ class AnkiClient:
         return await self.notes_info(note_ids)
 
     async def get_all_deck_stats(self) -> tuple[dict, dict]:
-        """Get deck names/IDs + stats in a single multi round-trip."""
+        """
+        Retrieve all deck names with their IDs and the corresponding deck statistics.
+        
+        If no decks exist, the second element of the returned tuple will be an empty dict.
+        
+        Returns:
+            tuple[dict, dict]: A tuple `(names_and_ids, stats)` where `names_and_ids` maps deck names to their IDs and `stats` maps deck names to their statistics.
+        """
         actions = [
             {"action": "deckNamesAndIds", "version": ANKI_CONNECT_VERSION},
             {"action": "deckNamesAndIds", "version": ANKI_CONNECT_VERSION},
@@ -126,10 +133,56 @@ class AnkiClient:
         stats = await self.get_deck_stats(deck_names)
         return names_and_ids, stats
 
+    # --- Card-level queries (for progress metrics) ---
+
+    async def find_cards(self, query: str) -> list[int]:
+        """
+        Find card IDs that match an Anki search query.
+        
+        Returns:
+            list[int]: Matching card IDs.
+        """
+        return await self._invoke("findCards", query=query)
+
+    async def cards_info(self, card_ids: list[int]) -> list[dict]:
+        """
+        Retrieve detailed information for the specified card IDs.
+        
+        Parameters:
+            card_ids (list[int]): Card IDs to fetch information for.
+        
+        Returns:
+            list[dict]: Card info dictionaries corresponding to the provided IDs; returns an empty list if `card_ids` is empty.
+        """
+        if not card_ids:
+            return []
+        all_results = []
+        for i in range(0, len(card_ids), 500):
+            chunk = card_ids[i : i + 500]
+            results = await self._invoke("cardsInfo", cards=chunk)
+            all_results.extend(results)
+        return all_results
+
+    async def num_cards_reviewed_by_day(self) -> list[list]:
+        """
+        Retrieve the number of cards reviewed per day.
+        
+        Returns:
+            list[list]: List of two-item lists `[date_str, count]` where `date_str` is a date string and `count` is the number of cards reviewed on that date.
+        """
+        return await self._invoke("getNumCardsReviewedByDay")
+
     # --- Export/Import ---
 
     async def export_package(self, deck: str, path: str, include_sched: bool = False) -> None:
-        """Export a deck to .apkg file."""
+        """
+        Export an Anki deck to an .apkg package file.
+        
+        Parameters:
+            deck (str): Name of the deck to export.
+            path (str): Filesystem path where the .apkg file will be written.
+            include_sched (bool): If True, include cards' scheduling data in the export; otherwise omit scheduling.
+        """
         await self._invoke(
             "exportPackage",
             deck=deck,
