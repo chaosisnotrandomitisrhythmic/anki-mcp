@@ -27,10 +27,10 @@ _MATURE_THRESHOLD = 21  # days — Anki's standard threshold
 def _interval_velocity(avg_interval: float) -> float:
     """
     Convert an average interval in days to a bounded velocity score that increases toward 1.0.
-    
+
     Parameters:
         avg_interval (float): Average interval in days.
-    
+
     Returns:
         score (float): A value between 0.0 and 1.0; larger intervals produce higher scores and the value approaches 1.0 asymptotically with a characteristic scale of about 90 days.
     """
@@ -39,11 +39,11 @@ def _interval_velocity(avg_interval: float) -> float:
 
 def _ease_stability(avg_factor: float) -> float:
     """
-    Map an average Anki factor to a stability score in the range 0.0–1.0.
-    
+    Map an average Anki factor to a stability score in the range 0.0-1.0.
+
     Parameters:
-        avg_factor (float): Average Anki factor (typical observed range ≈ 1300–3500).
-    
+        avg_factor (float): Average Anki factor (typical observed range 1300-3500).
+
     Returns:
         float: Stability score between 0.0 and 1.0; values below 1300 yield 0.0, values above 3500 yield 1.0.
     """
@@ -53,11 +53,11 @@ def _ease_stability(avg_factor: float) -> float:
 def _retention(total_reps: int, total_lapses: int) -> float:
     """
     Compute the retention fraction from total repetitions and lapses.
-    
+
     Parameters:
         total_reps (int): Total number of review repetitions.
         total_lapses (int): Total number of lapses (failed reviews).
-    
+
     Returns:
         float: The retention ratio (total_reps - total_lapses) / total_reps. Returns 0.0 when `total_reps` is 0.
     """
@@ -69,10 +69,10 @@ def _retention(total_reps: int, total_lapses: int) -> float:
 def _maturity_ratio(intervals: list[int]) -> float:
     """
     Compute the fraction of intervals that meet or exceed the maturity threshold.
-    
+
     Parameters:
         intervals (list[int]): Review intervals in days.
-    
+
     Returns:
         float: Fraction between 0.0 and 1.0 representing the proportion of `intervals` that are greater than or equal to `_MATURE_THRESHOLD`. Returns 0.0 if `intervals` is empty.
     """
@@ -86,13 +86,13 @@ def _heat_score(
 ) -> float:
     """
     Compute a weighted composite heat score from component metrics.
-    
+
     Parameters:
         iv (float): Interval velocity component in range [0.0, 1.0].
         es (float): Ease stability component in range [0.0, 1.0].
         ret (float): Retention component in range [0.0, 1.0].
         mat (float): Maturity ratio component in range [0.0, 1.0].
-    
+
     Returns:
         float: Composite score in range [0.0, 1.0] computed as 40% interval velocity, 30% ease stability, 20% retention, and 10% maturity.
     """
@@ -102,13 +102,13 @@ def _heat_score(
 def _heat_bar(score: float, width: int = 5) -> str:
     """
     Render a fixed-width heat bar representing a normalized score.
-    
+
     Parameters:
-    	score (float): Normalized score where 0.0 maps to no filled segments and 1.0 maps to all segments filled.
-    	width (int): Total number of segments in the bar (default 5).
-    
+        score (float): Normalized score where 0.0 maps to no filled segments and 1.0 maps to all segments filled.
+        width (int): Total number of segments in the bar (default 5).
+
     Returns:
-    	A fixed-width bar string enclosed in brackets where `#` denotes filled segments and `-` denotes unfilled segments (e.g., `[##---]`).
+        A fixed-width bar string enclosed in brackets where `#` denotes filled segments and `-` denotes unfilled segments (e.g., `[##---]`).
     """
     filled = round(score * width)
     return "[" + "#" * filled + "-" * (width - filled) + "]"
@@ -117,13 +117,15 @@ def _heat_bar(score: float, width: int = 5) -> str:
 def compute_interest_heat(cards: list[dict], top_n: int = 15) -> str:
     """
     Rank tags by a composite "Interest Heat" score and render the top tags as a Markdown table.
-    
+
     Generates a markdown section containing the top `top_n` tags sorted by a weighted heat score derived from card intervals, ease/factor, retention, and maturity. Tags with fewer than 3 associated cards are omitted. If no tag meets the minimum card requirement, returns a short message explaining that.
-    
+
+    Cards with queue == -1 (suspended) should already be filtered out upstream.
+
     Parameters:
         cards (list[dict]): Normalized card records; each card is expected to contain keys such as `"tags"`, `"interval"`, `"factor"`, `"reps"`, and `"lapses"`. Suspended cards (e.g., `queue == -1`) should be filtered out by the caller.
         top_n (int): Maximum number of tag rows to include in the output (default 15).
-    
+
     Returns:
         str: A markdown-formatted string for the "Interest Heat" section. When tags are available, this is a table with columns for tag, card count, heat percentage (with a visual bar), and component percentages; otherwise a short explanatory message.
     """
@@ -179,20 +181,20 @@ def compute_interest_heat(cards: list[dict], top_n: int = 15) -> str:
 def compute_deck_overview(cards: list[dict], deck_stats: dict[str, dict]) -> str:
     """
     Render a markdown "Deck Overview" table summarizing counts and maturity per deck.
-    
+
     Parameters:
         cards (list[dict]): Card records; each must include at least the keys
             "deck_name" and "interval".
         deck_stats (dict[str, dict]): Mapping from deck name to counts. Each deck
             dict is expected to provide the keys "total", "new_count", "learn_count",
             and "review_count".
-    
+
     Notes:
         Maturity buckets are computed from card intervals using the module-level
         threshold `_MATURE_THRESHOLD`: a card is "mature" when its interval is
         greater than or equal to `_MATURE_THRESHOLD`, "young" when its interval is
         greater than 0 and less than `_MATURE_THRESHOLD`.
-    
+
     Returns:
         str: Markdown-formatted table with columns: Deck, Total, New, Learning, Young,
         Mature, Due Today, and a final "All" summary row.
@@ -247,10 +249,10 @@ def compute_deck_overview(cards: list[dict], deck_stats: dict[str, dict]) -> str
 def compute_study_consistency(review_day_map: dict[int, int]) -> str:
     """
     Format study-consistency metrics from a mapping of days-ago to review counts into a Markdown section.
-    
+
     Parameters:
         review_day_map (dict[int, int]): Mapping where keys are days ago (0 = today) and values are review counts.
-    
+
     Returns:
         str: A Markdown-formatted "Study Consistency" section that includes today's review count, the current consecutive-review streak starting at day 0, the 7-day and 30-day average reviews per day, and the total reviews over the last 30 days.
     """
@@ -294,7 +296,7 @@ def format_progress_report(
 ) -> str:
     """
     Builds the complete Markdown progress report by assembling a dated header and the deck overview, interest heat, and study consistency sections.
-    
+
     Returns:
         The full report as a Markdown-formatted string.
     """

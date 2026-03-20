@@ -29,3 +29,21 @@ class DeckStats(BaseModel):
     learn_count: int = Field(default=0, description="Cards in learning")
     review_count: int = Field(default=0, description="Cards due for review")
     total_in_deck: int = Field(default=0, description="Total cards in deck")
+
+
+class TagHeat(BaseModel):
+    tag: str
+    card_count: int
+    heat_score: float = Field(..., description="Composite score 0.0–1.0")
+    interval_velocity: float
+    ease_stability: float
+    retention: float
+    maturity_ratio: float
+
+
+class StudyStreak(BaseModel):
+    current_streak: int
+    avg_cards_7d: float
+    avg_cards_30d: float
+    total_reviews_30d: int
+    today_count: int

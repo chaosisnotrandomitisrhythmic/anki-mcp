@@ -31,6 +31,10 @@ class ToolConfig:
         "- import_deck: Restore .apkg from archive\n"
         "- sync: Trigger AnkiWeb sync\n"
         "\n"
+        "Progress & analytics:\n"
+        "- progress: Learning progress report — deck maturity, Interest Heat Score "
+        "(which topics consolidate fastest), study streak & consistency\n"
+        "\n"
         "Diagnostics:\n"
         "- health: Check if AnkiConnect is reachable\n"
         "\n"
@@ -148,4 +152,21 @@ class ToolConfig:
         "\n"
         "Returns:\n"
         "    Connection status and Anki version info"
+    )
+
+    # progress
+    PROGRESS_DESCRIPTION = (
+        "Show learning progress: deck maturity, Interest Heat Score, study consistency.\n"
+        "\n"
+        "Interest Heat Score ranks tags by how well knowledge consolidates — "
+        "high scores reveal where genuine interest lives (effortless retention).\n"
+        "\n"
+        "Syncs with AnkiWeb first to include mobile reviews.\n"
+        "\n"
+        "Args:\n"
+        "    deck: Optional deck name to scope the report (default: all decks)\n"
+        "    top_n: Number of top tags to show in heat ranking (default: 15)\n"
+        "\n"
+        "Returns:\n"
+        "    Markdown report with deck overview, interest heat, and study streak"
     )
