@@ -138,7 +138,7 @@ class AnkiClient:
     async def find_cards(self, query: str) -> list[int]:
         """
         Find card IDs that match an Anki search query.
-        
+
         Returns:
             list[int]: Matching card IDs.
         """
@@ -147,10 +147,12 @@ class AnkiClient:
     async def cards_info(self, card_ids: list[int]) -> list[dict]:
         """
         Retrieve detailed information for the specified card IDs.
-        
+
+        Batches in chunks of 500.
+
         Parameters:
             card_ids (list[int]): Card IDs to fetch information for.
-        
+
         Returns:
             list[dict]: Card info dictionaries corresponding to the provided IDs; returns an empty list if `card_ids` is empty.
         """
@@ -166,7 +168,7 @@ class AnkiClient:
     async def num_cards_reviewed_by_day(self) -> list[list]:
         """
         Retrieve the number of cards reviewed per day.
-        
+
         Returns:
             list[list]: List of two-item lists `[date_str, count]` where `date_str` is a date string and `count` is the number of cards reviewed on that date.
         """
