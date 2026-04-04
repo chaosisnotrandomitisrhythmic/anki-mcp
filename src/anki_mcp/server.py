@@ -242,7 +242,9 @@ async def export_deck(deck: str, archive: bool = False) -> str:
 @mcp.tool(description=ToolConfig.IMPORT_DECK_DESCRIPTION)
 async def import_deck(filename: str) -> str:
     """Import/restore an .apkg from archive."""
-    path = ARCHIVE_DIR / filename
+    path = (ARCHIVE_DIR / filename).resolve()
+    if not path.is_relative_to(ARCHIVE_DIR.resolve()):
+        return "Invalid filename — must be a simple filename, not a path."
     if not path.exists():
         # List available files
         available = [f.name for f in ARCHIVE_DIR.glob("*.apkg")] if ARCHIVE_DIR.exists() else []

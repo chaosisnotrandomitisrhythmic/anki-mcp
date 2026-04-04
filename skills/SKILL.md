@@ -140,7 +140,7 @@ Use HTML in front/back fields:
 
 ## Tag Conventions
 
-- Lowercase, hyphenated (e.g., `rails`, `pundit`, `prescient`, `pr-review`)
+- Lowercase, hyphenated (e.g., `rails`, `python`, `algorithms`, `pr-review`)
 - Space-separated in Anki, list in the API
 - Add context tags: topic + source (e.g., `["terraform", "aws", "session-review"]`)
 - Add `session-extract` tag to all cards created via the extract workflow
