@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
-"""Daily Anki progress report → Obsidian note.
+"""Daily Anki progress report → Markdown file.
 
 Reads Anki's SQLite database directly (safe concurrent read via WAL mode).
 Falls back gracefully if Anki is running and locks the DB.
 
 Usage:
-    cd ~/mcp/anki-mcp && uv run python scripts/daily_progress.py
+    cd /path/to/anki-mcp && uv run python scripts/daily_progress.py
 """
 
 from __future__ import annotations
 
 import json
+import os
+import platform
 import sqlite3
 import sys
 from datetime import date, datetime
@@ -21,8 +23,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from anki_mcp.metrics import format_progress_report
 
-ANKI_DB = Path.home() / "Library" / "Application Support" / "Anki2" / "User 1" / "collection.anki2"
-OBSIDIAN_DIR = Path.home() / "Documents" / "refuse_to_choose" / "Anki Progress"
+
+def _default_anki_db() -> Path:
+    """Platform-aware default path to Anki's collection database."""
+    if platform.system() == "Darwin":
+        return Path.home() / "Library" / "Application Support" / "Anki2" / "User 1" / "collection.anki2"
+    return Path.home() / ".local" / "share" / "Anki2" / "User 1" / "collection.anki2"
+
+
+ANKI_DB = Path(os.environ.get("ANKI_DB_PATH", str(_default_anki_db()))).expanduser()
+OUTPUT_DIR = Path(os.environ.get("ANKI_MCP_OUTPUT_DIR", str(Path.home() / "Anki Progress"))).expanduser()
 
 
 def _try_ankiconnect_sync() -> bool:
@@ -191,9 +201,9 @@ def _load_review_history(db_path: Path) -> dict[int, int]:
 
 def main():
     """
-    Generate today's Anki progress report and write it as a Markdown file into the Obsidian vault.
+    Generate today's Anki progress report and write it as a Markdown file.
 
-    Attempts to sync via AnkiConnect; if unavailable, reads data directly from the configured Anki collection SQLite database. Loads card details, per-deck statistics, and recent review history, formats the report with format_progress_report, and writes the output to OBSIDIAN_DIR/YYYY-MM-DD.md. Exits with status code 1 if the configured ANKI_DB file does not exist.
+    Attempts to sync via AnkiConnect; if unavailable, reads data directly from the configured Anki collection SQLite database. Loads card details, per-deck statistics, and recent review history, formats the report with format_progress_report, and writes the output to OUTPUT_DIR/YYYY-MM-DD.md. Exits with status code 1 if the configured ANKI_DB file does not exist.
     """
     if not ANKI_DB.exists():
         print(f"Anki database not found at {ANKI_DB}", file=sys.stderr)
@@ -220,10 +230,10 @@ def main():
         data_as_of=data_as_of,
     )
 
-    # Write to Obsidian vault
-    OBSIDIAN_DIR.mkdir(parents=True, exist_ok=True)
+    # Write report
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     today = date.today().isoformat()
-    output_path = OBSIDIAN_DIR / f"{today}.md"
+    output_path = OUTPUT_DIR / f"{today}.md"
     output_path.write_text(report)
 
     print(f"Written to {output_path}")

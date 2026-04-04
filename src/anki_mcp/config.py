@@ -1,10 +1,16 @@
 """Central config for AnkiConnect constants and MCP tool prompts."""
 
+import os
 from pathlib import Path
 
 ANKI_CONNECT_URL = "http://127.0.0.1:8765"
 ANKI_CONNECT_VERSION = 6
-ARCHIVE_DIR = Path.home() / "dev" / "personal" / "anki" / "archive"
+ARCHIVE_DIR = Path(
+    os.environ.get(
+        "ANKI_MCP_ARCHIVE_DIR",
+        str(Path.home() / ".local" / "share" / "anki-mcp" / "archive"),
+    )
+).expanduser()
 DEFAULT_DECK = "Default"
 DEFAULT_MODEL = "Basic"
 
@@ -117,7 +123,7 @@ class ToolConfig:
 
     # export_deck
     EXPORT_DECK_DESCRIPTION = (
-        "Export a deck to .apkg file in ~/dev/personal/anki/archive/.\n"
+        "Export a deck to .apkg file in the configured archive directory.\n"
         "\n"
         "Args:\n"
         "    deck: Deck name to export\n"
@@ -132,7 +138,7 @@ class ToolConfig:
         "Import/restore a .apkg file from the archive directory.\n"
         "\n"
         "Args:\n"
-        "    filename: Name of the .apkg file in ~/dev/personal/anki/archive/\n"
+        "    filename: Name of the .apkg file in the configured archive directory\n"
         "\n"
         "Returns:\n"
         "    Confirmation of import"
