@@ -31,3 +31,7 @@ What actually happened. Include error messages if any.
 - **Anki version**: (e.g., 24.11)
 - **AnkiConnect version**: (from `health` tool output)
 - **MCP client**: (e.g., Claude Code, Claude Desktop)
+
+## Logs / Output
+
+Paste relevant terminal output, stack traces, or tool error messages.

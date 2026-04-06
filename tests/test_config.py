@@ -1,38 +1,49 @@
 """Tests for config module."""
 
+import importlib
 import os
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
+
+import anki_mcp.config as config_mod
+
+
+@pytest.fixture(autouse=True)
+def _reset_config_after_test():
+    """Reload config with a clean env after each test to avoid cross-test state leak."""
+    yield
+    os.environ.pop("ANKI_MCP_ARCHIVE_DIR", None)
+    importlib.reload(config_mod)
+
+
+def _reload_config():
+    importlib.reload(config_mod)
+    return config_mod
 
 
 def test_archive_dir_default():
     """Default ARCHIVE_DIR uses ~/.local/share/anki-mcp/archive."""
     with patch.dict(os.environ, {}, clear=False):
         os.environ.pop("ANKI_MCP_ARCHIVE_DIR", None)
-        # Re-import to pick up env change
-        import importlib
-        import anki_mcp.config as config_mod
-        importlib.reload(config_mod)
-        assert config_mod.ARCHIVE_DIR == Path.home() / ".local" / "share" / "anki-mcp" / "archive"
+        cfg = _reload_config()
+        assert cfg.ARCHIVE_DIR == Path.home() / ".local" / "share" / "anki-mcp" / "archive"
 
 
 def test_archive_dir_env_override():
     """ANKI_MCP_ARCHIVE_DIR env var overrides default."""
     with patch.dict(os.environ, {"ANKI_MCP_ARCHIVE_DIR": "/tmp/test-archive"}):
-        import importlib
-        import anki_mcp.config as config_mod
-        importlib.reload(config_mod)
-        assert config_mod.ARCHIVE_DIR == Path("/tmp/test-archive")
+        cfg = _reload_config()
+        assert cfg.ARCHIVE_DIR == Path("/tmp/test-archive")
 
 
 def test_archive_dir_tilde_expansion():
     """Env var with ~ is expanded."""
     with patch.dict(os.environ, {"ANKI_MCP_ARCHIVE_DIR": "~/my-archive"}):
-        import importlib
-        import anki_mcp.config as config_mod
-        importlib.reload(config_mod)
-        assert "~" not in str(config_mod.ARCHIVE_DIR)
-        assert config_mod.ARCHIVE_DIR == Path.home() / "my-archive"
+        cfg = _reload_config()
+        assert "~" not in str(cfg.ARCHIVE_DIR)
+        assert cfg.ARCHIVE_DIR == Path.home() / "my-archive"
 
 
 def test_constants():

@@ -13,6 +13,7 @@ def test_note_input_defaults():
 def test_note_input_custom():
     note = NoteInput(front="Q", back="A", tags=["python"], deck="CS", model="Cloze")
     assert note.deck == "CS"
+    assert note.model == "Cloze"
     assert note.tags == ["python"]
 
 

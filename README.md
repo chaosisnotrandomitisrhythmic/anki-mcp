@@ -19,7 +19,7 @@ MCP server for [Anki](https://apps.ankiweb.net/) via [AnkiConnect](https://fooso
 ## Requirements
 
 - Python 3.13+
-- [uv](https://docs.astral.sh/uv/) (recommended) or pip
+- [uv](https://docs.astral.sh/uv/)
 - [Anki](https://apps.ankiweb.net/) desktop running
 - [AnkiConnect](https://ankiweb.net/shared/info/2055492159) addon installed (addon code `2055492159`)
 - [Claude Code](https://claude.ai/code) or any MCP client
