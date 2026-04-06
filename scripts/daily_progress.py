@@ -77,6 +77,28 @@ def _get_last_sync_time(db_path: Path) -> str | None:
     return None
 
 
+def _load_deck_names(conn: sqlite3.Connection) -> dict[int, str]:
+    """Resolve deck IDs to display names.
+
+    Newer Anki versions (>= 23.10) store decks in a separate `decks` table and
+    use ASCII Unit Separator (\\x1f) instead of `::` for hierarchy. Older
+    versions store the entire deck tree as JSON in `col.decks`. Try the modern
+    table first; fall back to the legacy JSON column.
+    """
+    try:
+        rows = conn.execute("SELECT id, name FROM decks").fetchall()
+        if rows:
+            return {int(did): name.replace("\x1f", "::") for did, name in rows}
+    except sqlite3.OperationalError:
+        pass  # No `decks` table — fall through to legacy JSON
+
+    decks_json_row = conn.execute("SELECT decks FROM col").fetchone()
+    if not decks_json_row or not decks_json_row[0]:
+        return {}
+    decks = json.loads(decks_json_row[0])
+    return {int(did): d["name"] for did, d in decks.items()}
+
+
 def _load_cards(db_path: Path) -> list[dict]:
     """
     Load non-suspended Anki cards from the collection SQLite and return their relevant fields.
@@ -103,13 +125,8 @@ def _load_cards(db_path: Path) -> list[dict]:
         WHERE c.queue != -1
     """).fetchall()
 
-    # Load deck names
-    # In newer Anki versions, decks are in col.decks as JSON
-    decks_json = conn.execute("SELECT decks FROM col").fetchone()[0]
+    did_to_name = _load_deck_names(conn)
     conn.close()
-
-    decks = json.loads(decks_json)
-    did_to_name = {int(did): d["name"] for did, d in decks.items()}
 
     cards = []
     for r in rows:
@@ -144,10 +161,7 @@ def _load_deck_stats(db_path: Path) -> dict[str, dict]:
     """
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
 
-    # Deck names
-    decks_json = conn.execute("SELECT decks FROM col").fetchone()[0]
-    decks = json.loads(decks_json)
-    did_to_name = {int(did): d["name"] for did, d in decks.items()}
+    did_to_name = _load_deck_names(conn)
 
     rows = conn.execute("""
         SELECT did,
