@@ -1,13 +1,13 @@
 """FastMCP server with Anki tools."""
 
 import asyncio
-from datetime import date, timedelta
+from datetime import date
 from typing import Optional
 
 from fastmcp import FastMCP
 
 from .client import AnkiClient, AnkiConnectError, AnkiNotRunningError
-from .config import ARCHIVE_DIR, DEFAULT_DECK, DEFAULT_MODEL, ToolConfig
+from .config import ARCHIVE_DIR, ToolConfig
 from .metrics import format_progress_report
 from .models import DeckStats, NoteInfo, NoteInput
 from . import get_logger
