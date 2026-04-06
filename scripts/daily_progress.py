@@ -34,6 +34,14 @@ def _default_anki_db() -> Path:
 ANKI_DB = Path(os.environ.get("ANKI_DB_PATH", str(_default_anki_db()))).expanduser()
 OUTPUT_DIR = Path(os.environ.get("ANKI_MCP_OUTPUT_DIR", str(Path.home() / "Anki Progress"))).expanduser()
 
+# Optional: Obsidian vault root. When OUTPUT_DIR sits inside this root, the
+# script also appends a wikilink section to today's daily note so the
+# briefing surfaces from the same place as the Anamnesis Claude Session
+# blocks.
+VAULT_ROOT = Path(os.environ.get("ANAMNESIS_VAULT_ROOT", str(Path.home() / "Documents" / "refuse_to_choose"))).expanduser()
+DAILY_LOG_DIR = VAULT_ROOT / "Scanner Daybook" / "Daily Logs"
+ANKI_PROGRESS_HEADING = "### 🎴 Anki Progress"
+
 
 def _try_ankiconnect_sync() -> bool:
     """
@@ -244,14 +252,49 @@ def main():
         data_as_of=data_as_of,
     )
 
-    # Write report
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    today = date.today().isoformat()
-    output_path = OUTPUT_DIR / f"{today}.md"
+    # Write report into YYYY/MM/ subfolder so the Obsidian sidebar stays
+    # scannable (same convention as Scanner Daybook/Daily Logs and the
+    # post-migration Claude Sessions tree).
+    today_dt = date.today()
+    today = today_dt.isoformat()
+    year = today_dt.strftime("%Y")
+    month = today_dt.strftime("%m")
+    out_dir = OUTPUT_DIR / year / month
+    out_dir.mkdir(parents=True, exist_ok=True)
+    output_path = out_dir / f"{today}.md"
     output_path.write_text(report)
 
     print(f"Written to {output_path}")
     print(f"Cards: {len(cards)}, Decks: {len(deck_stats)}")
+
+    # If OUTPUT_DIR lives inside the Obsidian vault, append an idempotent
+    # wikilink section to today's daily note. Skip silently otherwise.
+    try:
+        rel_to_vault = output_path.relative_to(VAULT_ROOT)
+    except ValueError:
+        return  # OUTPUT_DIR not in vault — nothing to wire up
+
+    daily_path = DAILY_LOG_DIR / year / month / f"{today}.md"
+    link_target = str(rel_to_vault.with_suffix(""))  # vault-root-relative, no .md
+    block = (
+        f"\n---\n\n"
+        f"{ANKI_PROGRESS_HEADING}\n\n"
+        f"[[{link_target}|Interest Heat Score & deck stats]]\n"
+    )
+
+    daily_path.parent.mkdir(parents=True, exist_ok=True)
+    if daily_path.exists():
+        existing = daily_path.read_text()
+        if ANKI_PROGRESS_HEADING in existing:
+            print(f"Daily note already has Anki Progress section: {daily_path}")
+            return
+        with open(daily_path, "a") as f:
+            f.write(block)
+        print(f"Appended Anki Progress section to {daily_path}")
+    else:
+        header = f"# {today} - Daily Scanner Log\n"
+        daily_path.write_text(header + block)
+        print(f"Created daily note with Anki Progress section: {daily_path}")
 
 
 if __name__ == "__main__":
