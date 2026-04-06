@@ -121,11 +121,6 @@ class AnkiClient:
         Returns:
             tuple[dict, dict]: A tuple `(names_and_ids, stats)` where `names_and_ids` maps deck names to their IDs and `stats` maps deck names to their statistics.
         """
-        actions = [
-            {"action": "deckNamesAndIds", "version": ANKI_CONNECT_VERSION},
-            {"action": "deckNamesAndIds", "version": ANKI_CONNECT_VERSION},
-        ]
-        # First get names, then we need the names to get stats
         names_and_ids = await self.deck_names_and_ids()
         deck_names = list(names_and_ids.keys())
         if not deck_names:
